@@ -12,18 +12,24 @@ def lms2rgb(l, m, s):
     b = (-0.0004 * l) + (-0.0041 * m) + (0.6935 * s)
     return (r, g, b)
 
+def framergb2lms(frame):
+    frame[:,:,0], frame[:,:,1], frame[:,:,2] = rgb2lms(frame[:,:,0], frame[:,:,1], frame[:,:,2])
+    return frame
+
+def framelms2rgb(frame):
+    frame[:,:,0], frame[:,:,1], frame[:,:,2] = lms2rgb(frame[:,:,0], frame[:,:,1], frame[:,:,2])
+    return frame
+
 def fast(img):
     height, width, depth = img.shape
-    img[0:height, 0:width, 0:depth] = img[0:height, 0:width, 0:depth] / 2
+    img[0:height, 0:width, 0:depth] = framelms2rgb(framergb2lms(img[0:height, 0:width, 0:depth]))
     return img 
 
 vid = cv2.VideoCapture(2, cv2.CAP_DSHOW)
-r, g, b = 255, 45, 10
-l, m, s = rgb2lms(r, g, b)
-r, g, b = lms2rgb(l, m, s)
-print(r, g, b)
+
 while(True):
     ret, frame = vid.read()
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     fast(frame)
     
     cv2.imshow('frame', frame)
