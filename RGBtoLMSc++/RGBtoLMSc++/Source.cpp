@@ -14,16 +14,29 @@ int sgn(T val)
 {
 	return (T(0) < val) - (val < T(0));
 }
+
 Vec3b rgb2lms(Vec3b frame)
 {
 	int r = (int)frame[2];
 	int g = (int)frame[1];
 	int b = (int)frame[0];
-	float l = (4.11935 * b) + (43.5161 * g) + (17.8824 * r);
-	float m = (3.8671 * b) + (27.1554 * g) + (3.4556 * r);
-	float s = (1.4670 * b) + (0.1843 * g) + (0.0299 * r);
+	float l = (17.8824 * r) + (43.5161 * g) + (4.11935 * b);
+	float m = (3.4556 * r) + (27.1554 * g) + (3.8671 * b);
+	float s = (0.0299 * r) + (0.1843 * g) + (1.4670 * b);
 	return Vec3b(l, m, s);
 }
+
+Vec3b lms2rgb(Vec3b frame)
+{
+	int l = (int)frame[0];
+	int m = (int)frame[1];
+	int s = (int)frame[2];
+	float r = (0.0809 * l) + (-0.1305 * m) + (0.1167 * s);
+	float g = (-0.0102 * l) + (0.0540 * m) + (-0.1136 * s);
+	float b = (-0.0004 * l) + (-0.0041 * m) + (0.6935 * s);
+	return Vec3b(r, g, b);
+}
+
 Vec3b rgb2hsv(Vec3b frame)
 {
 	int r = (int)(frame[2]);
@@ -60,19 +73,7 @@ Vec3b rgb2hsv(Vec3b frame)
 
 int main(int argc, char* argv[])
 {
-	/*
-	int filter[width][height][3] = { 0 };
-	int filteredImg[width][height][3] = { 0 };
-	int integralImg[width][height][3] = { 0 };
-	std::unique_ptr<int[][height][3]> filter{std::make_unique<int[][height][3]>(width)};
-	std::unique_ptr<int[][height][3]> filteredImg{ std::make_unique<int[][height][3]>(width) };
-	std::unique_ptr<int[][height][3]> integralImg{ std::make_unique<int[][height][3]>(width) };
-	int sz[] = { width, height, 3 };
-	Mat filter(3, sz, CV_64FC3, Scalar::all(255));
-	Mat filteredImg(3, sz, CV_64FC3, Scalar::all(0));
-	Mat integralImg(3, sz, CV_64FC3, Scalar::all(0));
-	*/
-	VideoCapture cap(0); //, CAP_DSHOW);
+	VideoCapture cap(2); //, CAP_DSHOW);
 
 	double dWidth = cap.get(CAP_PROP_FRAME_WIDTH);
 	double dHeight = cap.get(CAP_PROP_FRAME_HEIGHT);
@@ -81,7 +82,7 @@ int main(int argc, char* argv[])
 	const int height = dHeight / r;
 	double a = 2;	// stepness activation function
 	double l = 0.1; // time constant
-	int mode = 0;
+	int mode = 2;
 
 	Mat filter(height, width, CV_32FC3, Scalar::all(255));
 	Mat integralImg(height, width, CV_8UC3, Scalar::all(0));
@@ -120,26 +121,6 @@ int main(int argc, char* argv[])
 		bool bSuccess = cap.read(frame);
 		cv::resize(frame, frame, Size(width, height));
 
-		/*
-		for (int j = 0; j < height; j++) {
-			for (int i = 0; i < width; i++) {
-				for (int k = 0; k < 3; k++) {
-					//double pxImg = frame.at<Vec3b>(j, i)[k];
-					//double pxintegralImg = integralImg.at<Vec3f>(j, i)[k];
-					//double pxFilter = filter.at<Vec3f>(j, i)[k];
-					//double pxfilteredImg = filteredImg.at<Vec3f>(j, i)[k];
-					//Vec3f rgbV = integralImg.at<Vec3f>(j, i);
-					//float px = frame.at<Vec3b>(j, i)[k] / 255.0;
-					//integralImg.at<Vec3f>(j, i)[k] = ((integralImg.at<Vec3f>(j, i)[k] + (l * px)) / (1 + l));
-					//int maxR = max(max(rgbV[0], rgbV[1]), rgbV[2]);
-					//int minR = min(min(rgbV[0], rgbV[1]), rgbV[2]);
-					//float s = maxR != minR ? (maxR - minR) / maxR : 0;
-					//filter.at<Vec3f>(j, i)[k] = (filter.at<Vec3f>(j, i)[k] + s * lut[int(integralImg.at<Vec3f>(j, i)[k] * s)]) / (1 + s);
-					//filteredImg.at<Vec3f>(j, i)[k] = px * filter.at<Vec3f>(j, i)[k] / 255.0;
-				}
-			}
-		}
-		*/
 		for (int r = 0; r < frame.rows; r++)
 		{
 			Vec3b* ptrFrame = frame.ptr<Vec3b>(r);
@@ -152,6 +133,7 @@ int main(int argc, char* argv[])
 			for (int c = 0; c < frame.cols; c++)
 			{
 				ptrLMSImage[c] = rgb2lms(ptrFrame[c]);
+				ptrLMSImage[c] = lms2rgb(ptrLMSImage[c]);
 				ptrHSVImage[c] = rgb2hsv(ptrFrame[c]);
 				float factor, maxF;
 
@@ -187,6 +169,8 @@ int main(int argc, char* argv[])
 						ptrFilteredImg[c][k] = ptrFilteredImg[c][k] * factor;
 					}
 					break;
+				case 2:
+					break;
 				}
 			}
 		}
@@ -198,11 +182,11 @@ int main(int argc, char* argv[])
 			break;
 		}
 
-		Mat displayh, displayh2, display;
-		hconcat(frame, filteredImg, displayh);
+		//Mat displayh, displayh2, display;
+		//hconcat(frame, filteredImg, displayh);
 		// hconcat(filter, integralImg, displayh2);
 		// vconcat(displayh, displayh2, display);
-		imshow(window_name, filteredImg);
+		imshow(window_name, lmsImage);
 		original.write(frame);
 		illusion.write(filteredImg);
 
